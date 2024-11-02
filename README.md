@@ -16,7 +16,7 @@ JSON file-based storage for persistence.
 
 Error handling with custom exceptions.
 
-By default, the data store will save the data file (data_store.json) in the user's Documents directory. You can specify a custom file path when initializing the LocalDataStore class.
+By default, the data store will save the data file (data_store.json) in the user's Documents directory. 
 
 # Usage Instructions
 1-Initialize the data store: store = LocalDataStore()
