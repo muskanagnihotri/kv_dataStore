@@ -28,11 +28,15 @@ The main script includes test cases that demonstrate the functionality of the da
 
 # Design Decisions
 1-Thread Safety: The threading.Lock is used to ensure thread-safe operations for concurrent access.
+
 2-TTL Handling: Expiry time is calculated and stored with each key-value pair. The data store automatically cleans up expired keys during read, write, and batch operations.
+
 3-Error Handling: Custom exceptions (DataStoreError, KeyExistsError, KeyNotFoundError, KeyTooLongError, ValueTooLargeError) are used for clear and specific error messages.
+
 4-File Storage: JSON file is used to persist the data. The file size is limited to 1GB to ensure manageable storage.
 
 # System-Specific Dependencies or Limitations
 File Size Limitation: The maximum file size for the data store is set to 1GB. If the file exceeds this size, cleanup of expired keys will be attempted. If it still exceeds the limit, an error is raised.
+
 File Path: Default file path is set to the user's Documents directory for cross-platform compatibility. Custom file paths can be specified if needed.
 
