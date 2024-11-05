@@ -51,3 +51,8 @@ File Size Limitation: The maximum file size for the data store is set to 1GB. If
 
 File Path: Default file path is set to the user's Documents directory for cross-platform compatibility. Custom file paths can be specified if needed.
 
+# Instructions for Running the test
+pip install coverage
+coverage run -m unittest discover
+coverage report -m
+
