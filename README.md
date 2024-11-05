@@ -53,6 +53,8 @@ File Path: Default file path is set to the user's Documents directory for cross-
 
 # Instructions for Running the test
 pip install coverage
+
 coverage run -m unittest discover
+
 coverage report -m
 
