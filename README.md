@@ -52,9 +52,17 @@ File Size Limitation: The maximum file size for the data store is set to 1GB. If
 File Path: Default file path is set to the user's Documents directory for cross-platform compatibility. Custom file paths can be specified if needed.
 
 # Instructions for Running the test
+Save the Unit Test Code: Copy the unit test code into a file. Name it something like (test_unit_test.py) and place it in your project directory(where app.py is located).
+
+Install Required Packages-
+
 pip install coverage
 
+Run the test-
+
 coverage run -m unittest discover
+
+Generate the Coverage Report-
 
 coverage report -m
 
