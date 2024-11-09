@@ -197,15 +197,10 @@ class LocalDataStore:
     def read(self, key: str) -> Dict[str, Any]:
         """Retrieve the JSON value corresponding to a key and differentiate expired keys."""
         with self.lock:
-            if key not in self.data:
+            if key not in self.data or self.is_key_expired(key):
                 return {
                     "status": "error",
                     "message": f"Key '{key}' not found."
-                }
-            elif self.is_expired(key):
-                return {
-                    "status": "expired",
-                    "message": f"Key '{key}' has expired."
                 }
             else:
                 return {
@@ -216,10 +211,8 @@ class LocalDataStore:
     def delete(self, key: str):
         """Delete a key-value pair."""
         with self.lock:
-            if key not in self.data:
+            if key not in self.data or self.is_key_expired(key):
                 raise KeyNotFoundError(f"Error: Key '{key}' not found.")
-            if self.is_expired(key):
-                raise KeyNotFoundError(f"Error: Key '{key}' has expired.")
             del self.data[key]
         self.save_data()
         return f"Key '{key}' deleted successfully."
