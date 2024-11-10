@@ -73,6 +73,7 @@ class LocalDataStore:
             logging.error(f"Error acquiring file lock: {e}")
             raise
 
+    
     def release_file_lock(self):
         """Release the file lock after finishing file operations"""
         try:
@@ -81,19 +82,28 @@ class LocalDataStore:
                     # For Windows, unlock using msvcrt
                     logging.info("Attempting to release file lock.")
                     msvcrt.locking(self.file_lock.fileno(), msvcrt.LK_UNLCK, os.fstat(self.file_lock.fileno()).st_size)
-                    logging.info("File lock released successfully.")
                 else:
                     # For Unix-based systems, unlock using fcntl
                     logging.info("Attempting to release file lock.")
                     fcntl.flock(self.file_lock, fcntl.LOCK_UN)  # Unlock the file
-                    logging.info("File lock released successfully.")
-
+                logging.info("File lock released successfully.")
                 self.file_lock.close()  # Close the file explicitly
 
         except Exception as e:
             logging.error(f"Error releasing file lock: {e}")
             raise 
-    
+    def __enter__(self):
+        """Enter the runtime context related to this object."""
+        self.acquire_file_lock()
+        return self
+
+    def _exit_(self, exc_type, exc_val, exc_tb):
+        """Context manager exit to release the file lock."""
+        if exc_type is not None:
+            logging.error("An exception occurred: %s", exc_val)
+            logging.debug("Traceback details:", exc_info=(exc_type, exc_val, exc_tb))
+        self.release_file_lock()
+
     def load_data(self):
         """Load data from the specified file path."""
         logging.info("Loading data from %s", self.file_path)
@@ -134,6 +144,16 @@ class LocalDataStore:
         finally:
             self.release_file_lock()
 
+    def check_capacity_usage(self) -> float:
+        """Calculate the current data capacity usage as a percentage."""
+        current_size = len(json.dumps(self.data).encode('utf-8'))
+        return current_size / self.MAX_DATA_CAPACITY
+
+    def handle_critical_threshold(self):
+        """Handle actions like cleanup or alerting when capacity exceeds the critical threshold."""
+        logging.info("Handling critical threshold. Taking actions such as cleanup or alerting.")
+        self.cleanup_expired_keys()
+
     def start_monitoring(self):
         """Start the background monitoring thread."""
         def monitor():
@@ -148,35 +168,21 @@ class LocalDataStore:
                 time.sleep(self.monitor_interval)
 
         monitoring_thread = threading.Thread(target=monitor, daemon=True)
-        monitoring_thread.start()
-
-
-    def check_capacity_usage(self) -> float:
-        """Calculate the current data capacity usage as a percentage."""
-        current_size = len(json.dumps(self.data).encode('utf-8'))
-        return current_size / self.MAX_DATA_CAPACITY
-
-    def handle_critical_threshold(self):
-        """Handle actions like cleanup or alerting when capacity exceeds the critical threshold."""
-        logging.info("Handling critical threshold. Taking actions such as cleanup or alerting.")
-        self.cleanup_expired_keys()
+        monitoring_thread.start()  
 
     def enforce_file_size_limit(self):
-        """Check and enforce file size limit before saving new data."""
-        file_size = os.path.getsize(self.file_path)
-        if file_size >= self.MAX_FILE_SIZE:
+        """Manage data capacity and clear expired keys if file size exceeds threshold."""
+        current_size = len(json.dumps(self.data).encode('utf-8'))
+
+        if current_size >= self.MAX_DATA_CAPACITY:
+            logging.info("Data capacity nearing limit. Cleaning up expired keys.")
             self.cleanup_expired_keys()
-            if os.path.getsize(self.file_path) >= self.MAX_FILE_SIZE:
-                raise FileSizeLimitExceededError(f"Error: The data store file size exceeded the maximum limit of {self.MAX_FILE_SIZE} bytes.")
 
-    def __enter__(self):
-        """Enter the runtime context related to this object."""
-        self.acquire_file_lock()
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        """Exit the runtime context related to this object."""
-        self.release_file_lock()
+            # Re-check size after cleanup
+            current_size = len(json.dumps(self.data).encode('utf-8'))
+            if current_size >= self.MAX_DATA_CAPACITY:
+                logging.error("Data store has exceeded the capacity limit after cleanup.")
+                raise FileSizeLimitExceededError("Error: Data store capacity exceeded. Delete some entries to free up space.")
 
     def create(self, key: str, value: Dict, ttl: Optional[int] = None):
         """Create a new key-value pair in the data store with an optional TTL."""  
@@ -226,9 +232,11 @@ class LocalDataStore:
 
     def is_expired(self, key: str) -> bool:
         """Check if a key has expired and delete it if so."""
-        if key not in self.data:
-            raise KeyNotFoundError(f"Key '{key}' not found.")
-        return self.data[key]["expiry"] is not None and self.data[key]["expiry"] < time.time()
+        if self.is_key_expired(key):
+            del self.data[key]
+            self.save_data()
+            return True
+        return False
 
     def cleanup_expired_keys(self):
         """
