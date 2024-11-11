@@ -158,7 +158,7 @@ class LocalDataStore:
         """Start the background monitoring thread."""
         def monitor():
             while True:
-                with self.lock:
+                with self.lock: #if you are using macOS use self.file_lock
                     usage_percentage = self.check_capacity_usage()
                     if usage_percentage > self.CRITICAL_THRESHOLD:
                        logging.warning("Critical alert: Data store is over 98% capacity.")       
